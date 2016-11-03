@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Lake Level</title>
+</head>
+<body>
+  <p>Current Level:<span id="currentLevel"></span></p>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/rxjs/5.0.0-beta.12/Rx.min.js"></script>
+  <script type="text/javascript">
+    const currentLevelSpan = document.getElementById('currentLevel')
+    const displayLevel = (elevation) => currentLevelSpan.innerHTML = " " + elevation
+
+    // Create reusable level fetching function
+    const getLevelSource = () =>
+      fetch('https://apcshorelines.com/api/docs/api-request-handler.php?url=https://lakesinfo.southernco.com/api/lake/apc/Smith')
+      .then(res => res.json())
+
+    // Create reusable level fetching stream
+    const levelStreamFactory =
+      Rx.Observable
+      .fromPromise(getLevelSource())
+      .map(({ current: { elevation }}) => (elevation))
+
+    levelStreamFactory
+      .forEach(elevation => displayLevel(elevation))
+
+    // Create stream that can replay level at will
+    const replayLevelStream = new Rx.ReplaySubject()
+    levelStreamFactory.subscribe(replayLevelStream)
+
+    // Create a timer to refresh the data and update the page
+    Rx.Observable
+      .interval(20000)
+      .switchMap(() => levelStreamFactory)
+      .forEach(elevation => {
+        console.log('Refreshing: ', elevation);
+        displayLevel(elevation);  
+      })
+  </script>
+</body>
+</html>
